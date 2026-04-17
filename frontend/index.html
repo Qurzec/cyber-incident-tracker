@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Трекер інцидентів кібербезпеки</title>
+    <link rel="stylesheet" href="styles.css">
+    <script defer src="app.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Трекер інцидентів кібербезпеки</h1>
+
+        <div class="form-section">
+            <h2>Додати новий інцидент</h2>
+            <form id="incidentForm">
+                <div class="form-group">
+                    <label for="incidentDate">Дата та час:</label>
+                    <input type="datetime-local" id="incidentDate" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="incidentTag">Тип (Тег):</label>
+                    <select id="incidentTag" required>
+                        <option value="">-- Оберіть тип --</option>
+                        <option value="Фішинг">Фішинг</option>
+                        <option value="Вредоносне ПО">Вредоносне ПО</option>
+                        <option value="DDoS">DDoS</option>
+                        <option value="Несанкціонований доступ">Несанкціонований доступ</option>
+                        <option value="Інше">Інше</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="incidentSeverity">Рівень загрози:</label>
+                    <select id="incidentSeverity" required>
+                        <option value="Низький">Низький</option>
+                        <option value="Середній">Середній</option>
+                        <option value="Високий">Високий</option>
+                        <option value="Критичний">Критичний</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="incidentReporter">Хто повідомив:</label>
+                    <input type="text" id="incidentReporter" placeholder="Прізвище та ім'я" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="incidentComments">Коментарі:</label>
+                    <textarea id="incidentComments" rows="3" placeholder="Опишіть деталі інциденту..."></textarea>
+                </div>
+
+                <button type="submit" id="submitBtn">Додати інцидент</button>
+            </form>
+        </div>
+
+        <div class="list-section">
+            <h2>Список інцидентів</h2>
+            <div class="table-container">
+                <table id="incidentTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Дата</th>
+                            <th>Тип</th>
+                            <th>Рівень</th>
+                            <th>Репортер</th>
+                            <th>Коментарі</th>
+                            <th>Дії</th>
+                        </tr>
+                    </thead>
+                    <tbody id="incidentList">
+                        <!-- Сюди JS буде додавати рядки -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
