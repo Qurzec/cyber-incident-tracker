@@ -1,1 +1,1 @@
-# cyber-incident-tracker
+Щоб запустити сайт треба зайти у папку frontend та запустити файл index.html
