@@ -24,8 +24,9 @@ const sortDateSelect = document.getElementById("sortDate");
 
 // Ключ для збереження в LocalStorage
 const STORAGE_KEY = "lr1_incidents";
+const API_URL = "http://localhost:3000/api/incidents";
 
-// 3. Функції для роботи з LocalStorage
+// 3. Функції для роботи з LocalStorage та API
 function saveToStorage() {
   // Перетворюємо масив об'єктів у рядок JSON та зберігаємо
   localStorage.setItem(STORAGE_KEY, JSON.stringify(incidents));
@@ -43,6 +44,22 @@ function loadFromStorage() {
   } catch (e) {
     console.error("Помилка завантаження даних з LocalStorage", e);
     return []; // У разі помилки повертаємо порожній масив
+  }
+}
+
+async function fetchIncidents() {
+  try {
+    const response = await fetch(API_URL);
+    if (!response.ok) {
+      throw new Error("Не вдалося завантажити інциденти з сервера");
+    }
+    const data = await response.json();
+    incidents = data.items;
+    renderIncidents();
+  } catch (e) {
+    console.error("Помилка завантаження інцидентів з API, спроба завантажити з LocalStorage", e);
+    incidents = loadFromStorage();
+    renderIncidents();
   }
 }
 
@@ -208,34 +225,70 @@ function renderIncidents() {
 }
 
 // 6. Допоміжні функції для роботи зі станом (додавання та оновлення)
-function addItem(dto) {
-  const newIncident = {
-    id: Date.now(), // Унікальний стабільний ID (мітка часу)
-    date: dto.date,
-    tag: dto.tag,
-    severity: dto.severity,
-    reporter: dto.reporter,
-    comments: dto.comments,
-  };
-  incidents.push(newIncident);
+async function addItem(dto) {
+  try {
+    const response = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(dto),
+    });
+    if (!response.ok) {
+      const errData = await response.json();
+      throw new Error(errData.error?.message || "Не вдалося створити інцидент");
+    }
+    await fetchIncidents();
+  } catch (error) {
+    alert("Помилка при додаванні на сервер: " + error.message);
+    const newIncident = {
+      id: Date.now().toString(),
+      date: dto.date,
+      tag: dto.tag,
+      severity: dto.severity,
+      reporter: dto.reporter,
+      comments: dto.comments,
+    };
+    incidents.push(newIncident);
+    saveToStorage();
+    renderIncidents();
+  }
 }
 
-function updateItem(id, dto) {
-  const incidentIndex = incidents.findIndex(function (item) {
-    return item.id === id;
-  });
+async function updateItem(id, dto) {
+  try {
+    const response = await fetch(`${API_URL}/${id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(dto),
+    });
+    if (!response.ok) {
+      const errData = await response.json();
+      throw new Error(errData.error?.message || "Не вдалося оновити інцидент");
+    }
+    await fetchIncidents();
+  } catch (error) {
+    alert("Помилка при оновленні на сервер: " + error.message);
+    const incidentIndex = incidents.findIndex(function (item) {
+      return item.id.toString() === id.toString();
+    });
 
-  if (incidentIndex !== -1) {
-    incidents[incidentIndex].date = dto.date;
-    incidents[incidentIndex].tag = dto.tag;
-    incidents[incidentIndex].severity = dto.severity;
-    incidents[incidentIndex].reporter = dto.reporter;
-    incidents[incidentIndex].comments = dto.comments;
+    if (incidentIndex !== -1) {
+      incidents[incidentIndex].date = dto.date;
+      incidents[incidentIndex].tag = dto.tag;
+      incidents[incidentIndex].severity = dto.severity;
+      incidents[incidentIndex].reporter = dto.reporter;
+      incidents[incidentIndex].comments = dto.comments;
+    }
+    saveToStorage();
+    renderIncidents();
   }
 }
 
 // 7. Обробка події відправки форми (Додавання або Збереження змін)
-incidentForm.addEventListener("submit", function (event) {
+incidentForm.addEventListener("submit", async function (event) {
   // Зупиняємо перезавантаження сторінки
   event.preventDefault();
 
@@ -252,20 +305,14 @@ incidentForm.addEventListener("submit", function (event) {
 
   if (editingId === null) {
     // Додаємо новий запис через окрему функцію
-    addItem(dto);
+    await addItem(dto);
   } else {
     // Оновлюємо існуючий запис через окрему функцію
-    updateItem(editingId, dto);
+    await updateItem(editingId, dto);
 
     // Повертаємо форму до звичайного стану
     resetEditingState();
   }
-
-  // Зберігаємо зміни у локальне сховище
-  saveToStorage();
-
-  // Оновлюємо таблицю
-  renderIncidents();
 
   // Очищаємо форму
   incidentForm.reset();
@@ -282,7 +329,7 @@ incidentForm.addEventListener("submit", function (event) {
 // 8. Функція переведення форми в режим редагування
 function startEditing(id) {
   const incident = incidents.find(function (item) {
-    return item.id === id;
+    return item.id.toString() === id.toString();
   });
 
   if (!incident) return;
@@ -326,30 +373,45 @@ cancelEditBtn.addEventListener("click", function () {
   resetEditingState();
 });
 
+async function deleteIncidentOnServer(id) {
+  try {
+    const response = await fetch(`${API_URL}/${id}`, {
+      method: "DELETE",
+    });
+    if (!response.ok) {
+      const errData = await response.json();
+      throw new Error(errData.error?.message || "Не вдалося видалити інцидент");
+    }
+    if (editingId && editingId.toString() === id.toString()) {
+      resetEditingState();
+    }
+    await fetchIncidents();
+  } catch (error) {
+    alert("Помилка при видаленні з сервера: " + error.message);
+    incidents = incidents.filter(function (item) {
+      return item.id.toString() !== id.toString();
+    });
+    if (editingId && editingId.toString() === id.toString()) {
+      resetEditingState();
+    }
+    saveToStorage();
+    renderIncidents();
+  }
+}
+
 // 10. Делегування подій на таблиці (динамічні кнопки Видалити/Редагувати)
 incidentList.addEventListener("click", function (event) {
   const target = event.target;
 
-  // Отримуємо ID з data-атрибута кнопки
-  const id = Number(target.dataset.id);
+  // Отримуємо ID з data-атрибута кнопки (як рядок)
+  const id = target.dataset.id;
   if (!id) return;
 
   // Якщо клікнули на "Видалити"
   if (target.classList.contains("btn-delete")) {
     // Питаємо підтвердження для безпеки
     if (confirm("Ви впевнені, що хочете видалити цей інцидент?")) {
-      // Фільтруємо масив
-      incidents = incidents.filter(function (item) {
-        return item.id !== id;
-      });
-
-      // Якщо ми видалили той інцидент, який зараз редагуємо - скасовуємо редагування
-      if (editingId === id) {
-        resetEditingState();
-      }
-
-      saveToStorage();
-      renderIncidents();
+      deleteIncidentOnServer(id);
     }
   }
 
@@ -365,5 +427,4 @@ filterTagSelect.addEventListener("change", renderIncidents);
 sortDateSelect.addEventListener("change", renderIncidents);
 
 // 12. Ініціалізація додатку при запуску
-incidents = loadFromStorage();
-renderIncidents();
+fetchIncidents();
