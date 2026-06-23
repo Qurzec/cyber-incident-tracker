@@ -5,11 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Трекер інцидентів кібербезпеки</title>
     <link rel="stylesheet" href="styles.css" />
-    <script defer src="app.js"></script>
+    <script type="module" src="js/main.js"></script>
   </head>
   <body>
+    <!-- Контейнер для спливаючих повідомлень (toasts) -->
+    <div id="notice" class="notice-toast"></div>
+
     <div class="container">
       <h1>Трекер інцидентів кібербезпеки</h1>
+
+      <!-- Контейнер для виведення глобальних помилок підключення (напр. CORS чи офлайн сервер) -->
+      <div id="errorBannerContainer"></div>
 
       <div class="main-content">
         <!-- Ліва колонка: Форма додавання та редагування інцидентів -->
@@ -70,6 +76,10 @@
               <span class="error-text" id="commentsError"></span>
             </div>
 
+            <div class="form-group" id="incidentCancelContainer" style="display: none;">
+              <button type="button" id="abortBtn" style="background-color: #e67e22;">Скасувати поточний запит до API</button>
+            </div>
+
             <div class="form-actions">
               <button type="submit" id="submitBtn">Додати інцидент</button>
               <button type="button" id="cancelEditBtn" style="display: none">
@@ -83,7 +93,7 @@
         <div class="list-section">
           <h2>Список інцидентів</h2>
 
-          <!-- Панель пошуку, фільтрації та сортування (на відмінно) -->
+          <!-- Панель пошуку, фільтрації та сортування -->
           <div class="filter-panel">
             <div class="filter-group">
               <label for="searchReporter">Пошук за репортером:</label>
@@ -129,7 +139,7 @@
                 </tr>
               </thead>
               <tbody id="incidentList">
-                <!-- Сюди JS буде додавати рядки -->
+                <!-- Сюди JS буде динамічно додавати дані або стани (loading/empty/error) -->
               </tbody>
             </table>
           </div>

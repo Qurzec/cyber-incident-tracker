@@ -1,0 +1,14 @@
+{
+  "name": "cybersecurity-incidents-tracker-ui",
+  "version": "1.0.0",
+  "description": "Фронтенд-частина для трекера інцидентів кібербезпеки на TypeScript",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "start": "npx http-server public -p 5500"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1",
+    "typescript": "^6.0.3"
+  }
+}
