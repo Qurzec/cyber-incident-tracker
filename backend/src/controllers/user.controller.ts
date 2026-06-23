@@ -10,9 +10,9 @@ export class UserController {
   }
 
   // GET /api/users - отримати всіх користувачів
-  public getAll = (req: Request, res: Response, next: NextFunction) => {
+  public getAll = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const users = this.userService.getAllUsers();
+      const users = await this.userService.getAllUsers();
       // Повертаємо список у стандартизованому форматі { items: [...], total: N }
       res.status(200).json({
         items: users,
@@ -24,10 +24,10 @@ export class UserController {
   };
 
   // GET /api/users/:id - отримати конкретного користувача за ID
-  public getById = (req: Request, res: Response, next: NextFunction) => {
+  public getById = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = req.params.id as string;
-      const user = this.userService.getUserById(userId);
+      const user = await this.userService.getUserById(userId);
       res.status(200).json(user);
     } catch (err) {
       next(err);
@@ -35,9 +35,9 @@ export class UserController {
   };
 
   // POST /api/users - створити нового користувача
-  public create = (req: Request, res: Response, next: NextFunction) => {
+  public create = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const user = this.userService.createUser(req.body);
+      const user = await this.userService.createUser(req.body);
       res.status(201).json(user);
     } catch (err) {
       next(err);
@@ -45,10 +45,14 @@ export class UserController {
   };
 
   // PUT /api/users/:id - повне оновлення даних користувача
-  public update = (req: Request, res: Response, next: NextFunction) => {
+  public update = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = req.params.id as string;
-      const updatedUser = this.userService.updateUser(userId, req.body, false);
+      const updatedUser = await this.userService.updateUser(
+        userId,
+        req.body,
+        false
+      );
       res.status(200).json(updatedUser);
     } catch (err) {
       next(err);
@@ -56,10 +60,14 @@ export class UserController {
   };
 
   // PATCH /api/users/:id - часткове оновлення даних користувача
-  public patch = (req: Request, res: Response, next: NextFunction) => {
+  public patch = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = req.params.id as string;
-      const updatedUser = this.userService.updateUser(userId, req.body, true);
+      const updatedUser = await this.userService.updateUser(
+        userId,
+        req.body,
+        true
+      );
       res.status(200).json(updatedUser);
     } catch (err) {
       next(err);
@@ -67,10 +75,10 @@ export class UserController {
   };
 
   // DELETE /api/users/:id - видалити користувача за ID
-  public delete = (req: Request, res: Response, next: NextFunction) => {
+  public delete = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = req.params.id as string;
-      this.userService.deleteUser(userId);
+      await this.userService.deleteUser(userId);
       res.status(204).end(); // 204 No Content
     } catch (err) {
       next(err);

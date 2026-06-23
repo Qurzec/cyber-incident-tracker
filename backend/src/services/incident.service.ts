@@ -28,72 +28,25 @@ export class IncidentService {
     };
   }
 
-  // Отримати список інцидентів з підтримкою фільтрації, сортування та пагінації (Excellent requirements)
-  public getAllIncidents(query: {
+  // Отримати список інцидентів з підтримкою фільтрації, сортування та пагінації
+  public async getAllIncidents(query: {
     tag?: string;
     severity?: string;
     page?: number;
     pageSize?: number;
     sortBy?: string;
     sortDir?: "asc" | "desc";
-  }): { items: IncidentResponseDto[]; total: number } {
-    let list = this.incidentRepository.findAll();
-
-    // 1. Фільтрація
-    if (query.tag) {
-      const searchTag = query.tag.trim().toLowerCase();
-      list = list.filter((i) => i.tag.toLowerCase().includes(searchTag));
-    }
-    if (query.severity) {
-      const searchSeverity = query.severity.trim().toLowerCase();
-      list = list.filter((i) => i.severity.toLowerCase() === searchSeverity);
-    }
-
-    // 2. Сортування
-    if (query.sortBy) {
-      const field = query.sortBy;
-      const direction = query.sortDir === "desc" ? "desc" : "asc";
-
-      list.sort((a, b) => {
-        const valA = a[field as keyof Incident];
-        const valB = b[field as keyof Incident];
-
-        if (valA === undefined || valB === undefined) return 0;
-
-        if (typeof valA === "string" && typeof valB === "string") {
-          return direction === "desc"
-            ? valB.localeCompare(valA, "uk-UA")
-            : valA.localeCompare(valB, "uk-UA");
-        } else if (typeof valA === "number" && typeof valB === "number") {
-          return direction === "desc" ? valB - valA : valA - valB;
-        }
-        return 0;
-      });
-    } else {
-      // За замовчуванням сортуємо за createdAt (новіші спочатку)
-      list.sort((a, b) => b.createdAt - a.createdAt);
-    }
-
-    const totalCount = list.length;
-
-    // 3. Пагінація
-    if (query.page && query.pageSize) {
-      const page = Math.max(1, query.page);
-      const pageSize = Math.max(1, query.pageSize);
-      const start = (page - 1) * pageSize;
-      const end = start + pageSize;
-      list = list.slice(start, end);
-    }
-
+  }): Promise<{ items: IncidentResponseDto[]; total: number }> {
+    const result = await this.incidentRepository.findAll(query);
     return {
-      items: list.map((i) => this.toResponseDto(i)),
-      total: totalCount,
+      items: result.items.map((i) => this.toResponseDto(i)),
+      total: result.total,
     };
   }
 
   // Отримати один інцидент за ID
-  public getIncidentById(id: string): IncidentResponseDto {
-    const incident = this.incidentRepository.findById(id);
+  public async getIncidentById(id: string): Promise<IncidentResponseDto> {
+    const incident = await this.incidentRepository.findById(id);
     if (!incident) {
       throw new ApiError(
         404,
@@ -105,7 +58,9 @@ export class IncidentService {
   }
 
   // Зареєструвати новий інцидент
-  public createIncident(dto: CreateIncidentRequestDto): IncidentResponseDto {
+  public async createIncident(
+    dto: CreateIncidentRequestDto
+  ): Promise<IncidentResponseDto> {
     const validationErrors: { field: string; message: string }[] = [];
 
     // Перевірка дати
@@ -189,27 +144,25 @@ export class IncidentService {
       );
     }
 
-    const newIncident: Incident = {
-      id: Date.now().toString(),
+    const newIncident = {
       date: dto.date.trim(),
       tag: dto.tag.trim(),
       severity: dto.severity.trim(),
       reporter: dto.reporter.trim(),
       comments: (dto.comments || "").trim(),
-      createdAt: Date.now(),
     };
 
-    const savedIncident = this.incidentRepository.create(newIncident);
+    const savedIncident = await this.incidentRepository.create(newIncident);
     return this.toResponseDto(savedIncident);
   }
 
   // Оновити дані інциденту за ID (повне або часткове оновлення)
-  public updateIncident(
+  public async updateIncident(
     id: string,
     dto: UpdateIncidentRequestDto,
     isPartial = false
-  ): IncidentResponseDto {
-    const existingIncident = this.incidentRepository.findById(id);
+  ): Promise<IncidentResponseDto> {
+    const existingIncident = await this.incidentRepository.findById(id);
     if (!existingIncident) {
       throw new ApiError(
         404,
@@ -318,7 +271,10 @@ export class IncidentService {
     if (dto.comments !== undefined)
       fieldsToUpdate.comments = dto.comments.trim();
 
-    const updatedIncident = this.incidentRepository.update(id, fieldsToUpdate);
+    const updatedIncident = await this.incidentRepository.update(
+      id,
+      fieldsToUpdate
+    );
     if (!updatedIncident) {
       throw new ApiError(
         500,
@@ -331,8 +287,8 @@ export class IncidentService {
   }
 
   // Видалити інцидент
-  public deleteIncident(id: string): void {
-    const deleted = this.incidentRepository.delete(id);
+  public async deleteIncident(id: string): Promise<void> {
+    const deleted = await this.incidentRepository.delete(id);
     if (!deleted) {
       throw new ApiError(
         404,
@@ -340,5 +296,47 @@ export class IncidentService {
         `Інцидент з ID ${id} не знайдено для видалення`
       );
     }
+  }
+
+  // Вразливий пошук через репозиторій
+  public async searchVulnerable(q: string): Promise<IncidentResponseDto[]> {
+    const items = await this.incidentRepository.searchVulnerable(q);
+    return items.map((i) => this.toResponseDto(i));
+  }
+
+  // Отримати коментарі до інциденту
+  public async getComments(incidentId: string): Promise<any[]> {
+    // Перевіряємо спочатку, чи існує інцидент
+    await this.getIncidentById(incidentId);
+    return await this.incidentRepository.getComments(incidentId);
+  }
+
+  // Додати коментар до інциденту
+  public async addComment(
+    incidentId: string,
+    userId: string,
+    message: string
+  ): Promise<any> {
+    // Перевіряємо спочатку, чи існує інцидент
+    await this.getIncidentById(incidentId);
+
+    if (!message || message.trim() === "") {
+      throw new ApiError(
+        400,
+        "VALIDATION_ERROR",
+        "Текст коментаря не може бути порожнім"
+      );
+    }
+
+    return await this.incidentRepository.addComment(
+      incidentId,
+      userId,
+      message
+    );
+  }
+
+  // Отримати аналітичну статистику
+  public async getAnalyticsSummary(): Promise<any> {
+    return await this.incidentRepository.getAnalyticsSummary();
   }
 }

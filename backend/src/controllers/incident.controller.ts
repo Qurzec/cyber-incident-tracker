@@ -10,7 +10,7 @@ export class IncidentController {
   }
 
   // GET /api/incidents - отримати всі інциденти з фільтрами, сортуванням та пагінацією
-  public getAll = (req: Request, res: Response, next: NextFunction) => {
+  public getAll = async (req: Request, res: Response, next: NextFunction) => {
     try {
       // Парсимо query-параметри для нашого сервісу
       const tag = req.query.tag as string | undefined;
@@ -26,7 +26,7 @@ export class IncidentController {
       const sortBy = req.query.sortBy as string | undefined;
       const sortDir = req.query.sortDir as "asc" | "desc" | undefined;
 
-      const result = this.incidentService.getAllIncidents({
+      const result = await this.incidentService.getAllIncidents({
         tag,
         severity,
         page,
@@ -43,10 +43,10 @@ export class IncidentController {
   };
 
   // GET /api/incidents/:id - отримати інцидент за ID
-  public getById = (req: Request, res: Response, next: NextFunction) => {
+  public getById = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const incidentId = req.params.id as string;
-      const incident = this.incidentService.getIncidentById(incidentId);
+      const incident = await this.incidentService.getIncidentById(incidentId);
       res.status(200).json(incident);
     } catch (err) {
       next(err);
@@ -54,9 +54,9 @@ export class IncidentController {
   };
 
   // POST /api/incidents - створити новий інцидент
-  public create = (req: Request, res: Response, next: NextFunction) => {
+  public create = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const incident = this.incidentService.createIncident(req.body);
+      const incident = await this.incidentService.createIncident(req.body);
       res.status(201).json(incident);
     } catch (err) {
       next(err);
@@ -64,10 +64,10 @@ export class IncidentController {
   };
 
   // PUT /api/incidents/:id - повне оновлення інциденту
-  public update = (req: Request, res: Response, next: NextFunction) => {
+  public update = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const incidentId = req.params.id as string;
-      const updatedIncident = this.incidentService.updateIncident(
+      const updatedIncident = await this.incidentService.updateIncident(
         incidentId,
         req.body,
         false
@@ -79,10 +79,10 @@ export class IncidentController {
   };
 
   // PATCH /api/incidents/:id - часткове оновлення інциденту
-  public patch = (req: Request, res: Response, next: NextFunction) => {
+  public patch = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const incidentId = req.params.id as string;
-      const updatedIncident = this.incidentService.updateIncident(
+      const updatedIncident = await this.incidentService.updateIncident(
         incidentId,
         req.body,
         true
@@ -94,11 +94,88 @@ export class IncidentController {
   };
 
   // DELETE /api/incidents/:id - видалити інцидент за ID
-  public delete = (req: Request, res: Response, next: NextFunction) => {
+  public delete = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const incidentId = req.params.id as string;
-      this.incidentService.deleteIncident(incidentId);
+      await this.incidentService.deleteIncident(incidentId);
       res.status(204).end(); // 204 No Content
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  // GET /api/incidents/search-vulnerable - вразливий пошук через конкатенацію SQL
+  public searchVulnerable = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const q = (req.query.q as string) || "";
+      const results = await this.incidentService.searchVulnerable(q);
+      res.status(200).json({
+        items: results,
+        total: results.length,
+      });
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  // GET /api/incidents/:id/comments - отримати коментарі до інциденту (JOIN з Users)
+  public getComments = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const incidentId = req.params.id as string;
+      const comments = await this.incidentService.getComments(incidentId);
+      res.status(200).json({
+        items: comments,
+        total: comments.length,
+      });
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  // POST /api/incidents/:id/comments - додати новий коментар
+  public addComment = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const incidentId = req.params.id as string;
+      const { userId, message } = req.body;
+
+      if (!userId) {
+        return res
+          .status(400)
+          .json({ error: "Вкажіть userId для додавання коментаря" });
+      }
+
+      const comment = await this.incidentService.addComment(
+        incidentId,
+        userId,
+        message
+      );
+      res.status(201).json(comment);
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  // GET /api/analytics/summary - отримати аналітику (агрегації COUNT, GROUP BY)
+  public getAnalyticsSummary = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const summary = await this.incidentService.getAnalyticsSummary();
+      res.status(200).json(summary);
     } catch (err) {
       next(err);
     }

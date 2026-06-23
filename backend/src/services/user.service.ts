@@ -26,14 +26,14 @@ export class UserService {
   }
 
   // Отримати список усіх користувачів
-  public getAllUsers(): UserResponseDto[] {
-    const users = this.userRepository.findAll();
+  public async getAllUsers(): Promise<UserResponseDto[]> {
+    const users = await this.userRepository.findAll();
     return users.map((u) => this.toResponseDto(u));
   }
 
   // Отримати користувача за ID
-  public getUserById(id: string): UserResponseDto {
-    const user = this.userRepository.findById(id);
+  public async getUserById(id: string): Promise<UserResponseDto> {
+    const user = await this.userRepository.findById(id);
     if (!user) {
       throw new ApiError(
         404,
@@ -45,7 +45,7 @@ export class UserService {
   }
 
   // Створити нового користувача з валідацією полів
-  public createUser(dto: CreateUserRequestDto): UserResponseDto {
+  public async createUser(dto: CreateUserRequestDto): Promise<UserResponseDto> {
     const validationErrors: { field: string; message: string }[] = [];
 
     // Валідація імені користувача
@@ -95,12 +95,17 @@ export class UserService {
       });
     }
 
-    // Валідація унікальності пошти
-    if (dto.email && this.userRepository.findByEmail(dto.email.trim())) {
-      validationErrors.push({
-        field: "email",
-        message: "Цей email вже зареєстрований",
-      });
+    // Валідація унікальності пошти (викликаємо асинхронний пошук)
+    if (dto.email && dto.email.trim() !== "") {
+      const existingUser = await this.userRepository.findByEmail(
+        dto.email.trim()
+      );
+      if (existingUser) {
+        validationErrors.push({
+          field: "email",
+          message: "Цей email вже зареєстрований",
+        });
+      }
     }
 
     // Якщо є якісь помилки - викидаємо 400 Bad Request
@@ -113,25 +118,24 @@ export class UserService {
       );
     }
 
-    const newUser: User = {
-      id: Date.now().toString(),
+    const newUser = {
       username: dto.username.trim(),
       email: dto.email.trim(),
       password: dto.password,
       role: dto.role,
     };
 
-    const savedUser = this.userRepository.create(newUser);
+    const savedUser = await this.userRepository.create(newUser);
     return this.toResponseDto(savedUser);
   }
 
   // Оновити користувача за його ID (повне або часткове оновлення)
-  public updateUser(
+  public async updateUser(
     id: string,
     dto: UpdateUserRequestDto,
     isPartial = false
-  ): UserResponseDto {
-    const existingUser = this.userRepository.findById(id);
+  ): Promise<UserResponseDto> {
+    const existingUser = await this.userRepository.findById(id);
     if (!existingUser) {
       throw new ApiError(
         404,
@@ -205,7 +209,9 @@ export class UserService {
 
     // Перевірка унікальності пошти
     if (dto.email && dto.email.trim() !== "") {
-      const userWithEmail = this.userRepository.findByEmail(dto.email.trim());
+      const userWithEmail = await this.userRepository.findByEmail(
+        dto.email.trim()
+      );
       if (userWithEmail && userWithEmail.id !== id) {
         validationErrors.push({
           field: "email",
@@ -231,7 +237,7 @@ export class UserService {
     if (dto.password !== undefined) fieldsToUpdate.password = dto.password;
     if (dto.role !== undefined) fieldsToUpdate.role = dto.role;
 
-    const updatedUser = this.userRepository.update(id, fieldsToUpdate);
+    const updatedUser = await this.userRepository.update(id, fieldsToUpdate);
     if (!updatedUser) {
       throw new ApiError(
         500,
@@ -244,8 +250,8 @@ export class UserService {
   }
 
   // Видалити користувача за його ID
-  public deleteUser(id: string): void {
-    const deleted = this.userRepository.delete(id);
+  public async deleteUser(id: string): Promise<void> {
+    const deleted = await this.userRepository.delete(id);
     if (!deleted) {
       throw new ApiError(
         404,

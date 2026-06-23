@@ -10,7 +10,15 @@ const incidentRepository = new IncidentRepository();
 const incidentService = new IncidentService(incidentRepository);
 const incidentController = new IncidentController(incidentService);
 
-// Маршрути для /api/incidents
+// Спеціальні маршрути (мають бути оголошені перед /:id, щоб уникнути конфліктів парсингу шляхів)
+router.get("/search-vulnerable", incidentController.searchVulnerable);
+router.get("/analytics/summary", incidentController.getAnalyticsSummary);
+
+// Маршрути для коментарів до інцидентів (JOIN сутностей)
+router.get("/:id/comments", incidentController.getComments);
+router.post("/:id/comments", incidentController.addComment);
+
+// Стандартні CRUD маршрути для /api/incidents
 router.get("/", incidentController.getAll);
 router.get("/:id", incidentController.getById);
 router.post("/", incidentController.create);
