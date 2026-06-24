@@ -14,6 +14,16 @@
     <div class="container">
       <h1>Трекер інцидентів кібербезпеки</h1>
 
+      <!-- Селектор користувача для демонстрації IDOR (Лабораторна робота №5) -->
+      <div class="user-selector-container">
+        <label for="demoUserSelect"><b>Поточний користувач (демо):</b></label>
+        <select id="demoUserSelect">
+          <option value="1">David (ID 1 - Admin)</option>
+          <option value="2">Olena (ID 2 - Editor)</option>
+          <option value="3">Ivan (ID 3 - User)</option>
+        </select>
+      </div>
+
       <!-- Контейнер для виведення глобальних помилок підключення (напр. CORS чи офлайн сервер) -->
       <div id="errorBannerContainer"></div>
 

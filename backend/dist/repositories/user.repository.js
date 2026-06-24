@@ -21,14 +21,14 @@ class UserRepository {
     }
     // Знайти користувача за його ID
     async findById(id) {
-        const row = await (0, dbClient_1.get)(`SELECT * FROM Users WHERE id = ${Number(id)};`);
+        const row = await (0, dbClient_1.get)("SELECT * FROM Users WHERE id = ?;", [Number(id)]);
         if (!row)
             return undefined;
         return this.mapRowToUser(row);
     }
     // Знайти користувача за поштою (потрібно для перевірки унікальності)
     async findByEmail(email) {
-        const row = await (0, dbClient_1.get)(`SELECT * FROM Users WHERE LOWER(email) = '${(0, dbClient_1.escapeSql)(email.trim().toLowerCase())}';`);
+        const row = await (0, dbClient_1.get)("SELECT * FROM Users WHERE LOWER(email) = ?;", [email.trim().toLowerCase()]);
         if (!row)
             return undefined;
         return this.mapRowToUser(row);
@@ -36,16 +36,14 @@ class UserRepository {
     // Додати нового користувача
     async create(user) {
         const createdAt = new Date().toISOString();
-        const result = await (0, dbClient_1.run)(`
-      INSERT INTO Users (username, email, password, role, createdAt)
-      VALUES (
-        '${(0, dbClient_1.escapeSql)(user.username.trim())}',
-        '${(0, dbClient_1.escapeSql)(user.email.trim())}',
-        '${(0, dbClient_1.escapeSql)(user.password || "")}',
-        '${(0, dbClient_1.escapeSql)(user.role)}',
-        '${createdAt}'
-      );
-    `);
+        const result = await (0, dbClient_1.run)(`INSERT INTO Users (username, email, password, role, createdAt)
+       VALUES (?, ?, ?, ?, ?);`, [
+            user.username.trim(),
+            user.email.trim(),
+            user.password || "",
+            user.role,
+            createdAt
+        ]);
         const savedUser = await this.findById(result.lastID);
         if (!savedUser) {
             throw new Error("Не вдалося створити користувача у базі даних");
@@ -55,30 +53,36 @@ class UserRepository {
     // Оновити дані користувача за його ID
     async update(id, updatedFields) {
         const sets = [];
+        const params = [];
         if (updatedFields.username !== undefined) {
-            sets.push(`username = '${(0, dbClient_1.escapeSql)(updatedFields.username.trim())}'`);
+            sets.push("username = ?");
+            params.push(updatedFields.username.trim());
         }
         if (updatedFields.email !== undefined) {
-            sets.push(`email = '${(0, dbClient_1.escapeSql)(updatedFields.email.trim())}'`);
+            sets.push("email = ?");
+            params.push(updatedFields.email.trim());
         }
         if (updatedFields.password !== undefined) {
-            sets.push(`password = '${(0, dbClient_1.escapeSql)(updatedFields.password)}'`);
+            sets.push("password = ?");
+            params.push(updatedFields.password);
         }
         if (updatedFields.role !== undefined) {
-            sets.push(`role = '${(0, dbClient_1.escapeSql)(updatedFields.role)}'`);
+            sets.push("role = ?");
+            params.push(updatedFields.role);
         }
         if (sets.length === 0) {
             return this.findById(id);
         }
-        const sql = `UPDATE Users SET ${sets.join(", ")} WHERE id = ${Number(id)};`;
-        const result = await (0, dbClient_1.run)(sql);
+        params.push(Number(id));
+        const sql = `UPDATE Users SET ${sets.join(", ")} WHERE id = ?;`;
+        const result = await (0, dbClient_1.run)(sql, params);
         if (result.changes === 0)
             return undefined;
         return this.findById(id);
     }
     // Видалити користувача за його ID
     async delete(id) {
-        const result = await (0, dbClient_1.run)(`DELETE FROM Users WHERE id = ${Number(id)};`);
+        const result = await (0, dbClient_1.run)("DELETE FROM Users WHERE id = ?;", [Number(id)]);
         return result.changes > 0;
     }
 }

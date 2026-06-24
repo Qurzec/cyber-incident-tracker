@@ -2,6 +2,7 @@ import { Router } from "express";
 import { IncidentRepository } from "../repositories/incident.repository";
 import { IncidentService } from "../services/incident.service";
 import { IncidentController } from "../controllers/incident.controller";
+import { demoAuthMiddleware } from "../middleware/demoAuth.middleware";
 
 const router = Router();
 
@@ -21,10 +22,10 @@ router.post("/:id/comments", incidentController.addComment);
 // Стандартні CRUD маршрути для /api/incidents
 router.get("/", incidentController.getAll);
 router.get("/:id", incidentController.getById);
-router.post("/", incidentController.create);
-router.put("/:id", incidentController.update);
-router.patch("/:id", incidentController.patch);
-router.delete("/:id", incidentController.delete);
+router.post("/", demoAuthMiddleware, incidentController.create);
+router.put("/:id", demoAuthMiddleware, incidentController.update);
+router.patch("/:id", demoAuthMiddleware, incidentController.patch);
+router.delete("/:id", demoAuthMiddleware, incidentController.delete);
 
 export default router;
 export { incidentRepository, incidentService }; // Експортуємо про всяк випадок

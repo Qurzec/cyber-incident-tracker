@@ -19,7 +19,7 @@ const allowedOrigins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 ];
-// Налаштування CORS згідно з вимогами Лабораторної роботи №4
+// Налаштування CORS згідно з вимогами Лабораторної роботи №4 та №5
 app.use((0, cors_1.default)({
     origin: (origin, callback) => {
         // дозволяємо запити без origin (наприклад, curl, Postman тощо)
@@ -31,8 +31,15 @@ app.use((0, cors_1.default)({
         return callback(new Error("CORS: Доступ заблоковано політикою безпеки (Origin не дозволено)"), false);
     },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Demo-UserId"],
 }));
+// Встановлення безпекових заголовків (Лабораторна робота №5)
+app.use((req, res, next) => {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader("Referrer-Policy", "no-referrer");
+    next();
+});
 // Обробка попередніх запитів preflight OPTIONS для всіх маршрутів
 app.options("*", (0, cors_1.default)());
 // Middleware для зчитування JSON у req.body

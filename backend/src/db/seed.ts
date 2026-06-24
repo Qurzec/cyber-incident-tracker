@@ -49,7 +49,7 @@ async function seed(): Promise<void> {
 
   // 2. Додаємо початкові інциденти
   await run(`
-    INSERT OR IGNORE INTO Incidents (id, date, tag, severity, reporter, comments, createdAt)
+    INSERT OR IGNORE INTO Incidents (id, date, tag, severity, reporter, comments, ownerUserId, createdAt)
     VALUES (
       1,
       '2026-06-04T10:00',
@@ -57,12 +57,13 @@ async function seed(): Promise<void> {
       'Високий',
       'Oleksandr Shevchenko',
       'Атака на веб-сайт, зафіксовано велику кількість сміттєвого трафіку.',
+      1,
       '${now}'
     );
   `);
 
   await run(`
-    INSERT OR IGNORE INTO Incidents (id, date, tag, severity, reporter, comments, createdAt)
+    INSERT OR IGNORE INTO Incidents (id, date, tag, severity, reporter, comments, ownerUserId, createdAt)
     VALUES (
       2,
       '2026-06-04T11:15',
@@ -70,6 +71,7 @@ async function seed(): Promise<void> {
       'Середній',
       'Maria Sydorenko',
       'Виявлено розсилку фішингових листів серед працівників.',
+      2,
       '${now}'
     );
   `);

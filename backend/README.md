@@ -1,8 +1,8 @@
-# Документація та інструкція для Backend API (Лабораторна робота №4 - Рівень "На Відмінно")
+# Документація та інструкція для Backend API (Лабораторна робота №5 - Безпека та Захист від вразливостей)
 
-Цей проект є бекенд-частиною для трекера інцидентів кібербезпеки з реляційною базою даних **SQLite** за допомогою сирих SQL-запитів, автоматичними міграціями на старті застосунку, зв'язками між сутностями (JOIN), аналітичними агрегаціями та демонстраційним вразливим до SQL Injection маршрутом.
+Цей проект є бекенд-частиною для трекера інцидентів кібербезпеки з реляційною базою даних **SQLite** за допомогою сирих SQL-запитів, автоматичними міграціями на старті застосунку, зв'язками між сутностями (JOIN), аналітичними агрегаціями та впровадженим захистом від SQL Injection, IDOR, XSS та Security Misconfigurations.
 
-У цій лабораторній роботі додано **версійність API `/api/v1/`** та **захист CORS** з явним списком дозволених джерел (origins whitelist).
+У цій лабораторній роботі додано **захист від вразливостей**, **безпекові заголовки Express**, **маскування помилок SQLite** та **авторизацію користувача X-Demo-UserId**.
 
 Проект повністю написано на **TypeScript**.
 
@@ -18,6 +18,7 @@
 erDiagram
     Users ||--o{ IncidentComments : "пише"
     Incidents ||--o{ IncidentComments : "має"
+    Users ||--o{ Incidents : "володіє"
 
     Users {
         INTEGER id PK
@@ -35,6 +36,7 @@ erDiagram
         TEXT severity
         TEXT reporter
         TEXT comments
+        INTEGER ownerUserId FK
         TEXT createdAt
     }
 
@@ -64,6 +66,7 @@ erDiagram
    - `severity`: Рівень загрози (`TEXT NOT NULL CHECK(severity IN ('Низький', 'Середній', 'Високий', 'Критичний'))`).
    - `reporter`: Хто повідомив про подію (`TEXT NOT NULL`).
    - `comments`: Опис детальних обставин (`TEXT` - необов'язкове).
+   - `ownerUserId`: Зовнішній ключ (`INTEGER NOT NULL`), посилається на `Users.id`. Вказує на власника інциденту для перевірки доступу (захист від IDOR).
    - `createdAt`: ISO рядок створення (`TEXT NOT NULL`).
 
 3. **Коментарі (`IncidentComments`)**:
@@ -145,30 +148,52 @@ curl -i http://localhost:3000/api/v1/incidents/analytics/summary
 
 ---
 
-## Інструкція та демонстрація вразливості SQL Injection
+## Інструкція та демонстрація захисту від SQL Injection
 
-У цій роботі реалізовано вразливий пошуковий ендпоінт: `GET /api/v1/incidents/search-vulnerable?q=...`.
+Раніше пошуковий ендпоінт був вразливим: `GET /api/v1/incidents/search-vulnerable?q=...`.
 
-Код репозиторію формує запит за допомогою безпосередньої конкатенації:
+### Було (Вразливий код):
+Код репозиторію формував запит за допомогою безпосередньої конкатенації:
 ```typescript
 const sql = `SELECT * FROM Incidents WHERE comments LIKE '%${q}%' ORDER BY id DESC;`;
+const rows = await all<any>(sql);
 ```
-
-### Демонстрація атаки (SQL Injection)
-
-Якщо зловмисник введе як пошуковий запит значення, яке містить одинарну лапку та оператор `OR 1=1`, він зможе зламати логіку вибірки `WHERE`.
-
-Приклад запиту для демонстрації:
+Експлуатація:
 ```bash
 curl -i "http://localhost:3000/api/v1/incidents/search-vulnerable?q=%27%20OR%201=1%20--"
 ```
+Повертало абсолютно всі інциденти через зсув логіки запиту.
 
-**Що відбувається під капотом:**
-Сформований SQL-запит перетворюється на:
-```sql
-SELECT * FROM Incidents WHERE comments LIKE '%' OR 1=1 --%' ORDER BY id DESC;
+### Стало (Захищений код):
+Тепер запит виконується через безпечний плейсхолдер:
+```typescript
+const sql = "SELECT * FROM Incidents WHERE comments LIKE ? ORDER BY id DESC;";
+const rows = await all<any>(sql, [`%${q}%`]);
 ```
-Оскільки оператор `OR 1=1` завжди повертає `true`, база даних ігнорує початкову фільтрацію і повертає абсолютно всі записи з таблиці `Incidents`. Символи `--` коментують і відсікають решту запиту, нейтралізуючи закриваючу лапку `%`.
+Спроба експлуатації повертає пустий масив `[]` (0 записів), оскільки запит шукає підрядок `'% OR 1=1 --` буквально, запобігаючи виконанню довільного SQL-коду.
+
+---
+
+## Захист від IDOR та Авторизація (`X-Demo-UserId`)
+
+Для створення, редагування та видалення інцидентів обов'язково потрібно передавати заголовок `X-Demo-UserId`, який ідентифікує поточного користувача. Редагувати та видаляти інциденти може лише їх безпосередній власник (`ownerUserId`).
+
+### Приклад блокування IDOR (Користувач 2 намагається змінити інцидент Користувача 1):
+```bash
+curl -i -X PATCH http://localhost:3000/api/v1/incidents/1 \
+  -H "Content-Type: application/json" \
+  -H "X-Demo-UserId: 2" \
+  -d '{"comments": "Спроба зламати інцидент"}'
+```
+**Відповідь:** `HTTP/1.1 403 Forbidden`
+```json
+{
+  "error": {
+    "code": "FORBIDDEN",
+    "message": "Доступ заблоковано: Ви не є власником цього інциденту"
+  }
+}
+```
 
 ---
 
@@ -207,19 +232,22 @@ SELECT * FROM Incidents WHERE comments LIKE '%' OR 1=1 --%' ORDER BY id DESC;
   ```bash
   curl -i http://localhost:3000/api/v1/incidents
   ```
-* **Створити новий інцидент:**
+* **Створити новий інцидент (від імені користувача з ID 1):**
   ```bash
   curl -i -X POST http://localhost:3000/api/v1/incidents \
     -H "Content-Type: application/json" \
+    -H "X-Demo-UserId: 1" \
     -d '{"date": "2026-06-04T12:00", "tag": "Вредоносне ПО", "severity": "Критичний", "reporter": "Ivan Ivanov", "comments": "Виявлено шифрувальник на робочому компютері."}'
   ```
-* **Частково оновити коментар в інциденті:**
+* **Оновити власний інцидент (якщо ID власника відповідає):**
   ```bash
   curl -i -X PATCH http://localhost:3000/api/v1/incidents/1 \
     -H "Content-Type: application/json" \
+    -H "X-Demo-UserId: 1" \
     -d '{"comments": "Оновлені деталі: DDoS-атака припинилась."}'
   ```
-* **Видалити інцидент:**
+* **Видалити власний інцидент:**
   ```bash
-  curl -i -X DELETE http://localhost:3000/api/v1/incidents/2
+  curl -i -X DELETE http://localhost:3000/api/v1/incidents/1 \
+    -H "X-Demo-UserId: 1"
   ```

@@ -44,7 +44,7 @@ async function seed() {
   `);
     // 2. Додаємо початкові інциденти
     await (0, dbClient_1.run)(`
-    INSERT OR IGNORE INTO Incidents (id, date, tag, severity, reporter, comments, createdAt)
+    INSERT OR IGNORE INTO Incidents (id, date, tag, severity, reporter, comments, ownerUserId, createdAt)
     VALUES (
       1,
       '2026-06-04T10:00',
@@ -52,11 +52,12 @@ async function seed() {
       'Високий',
       'Oleksandr Shevchenko',
       'Атака на веб-сайт, зафіксовано велику кількість сміттєвого трафіку.',
+      1,
       '${now}'
     );
   `);
     await (0, dbClient_1.run)(`
-    INSERT OR IGNORE INTO Incidents (id, date, tag, severity, reporter, comments, createdAt)
+    INSERT OR IGNORE INTO Incidents (id, date, tag, severity, reporter, comments, ownerUserId, createdAt)
     VALUES (
       2,
       '2026-06-04T11:15',
@@ -64,6 +65,7 @@ async function seed() {
       'Середній',
       'Maria Sydorenko',
       'Виявлено розсилку фішингових листів серед працівників.',
+      2,
       '${now}'
     );
   `);

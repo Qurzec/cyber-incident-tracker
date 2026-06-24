@@ -7,6 +7,7 @@ export interface Incident {
   reporter: string;
   comments: string;
   createdAt: number;
+  ownerUserId: number; // Власник інциденту
 }
 
 // DTO для створення нового інциденту (POST /api/incidents)
@@ -16,6 +17,7 @@ export interface CreateIncidentRequestDto {
   severity: string;
   reporter: string;
   comments?: string;
+  ownerUserId?: number; // Може передаватися або вираховуватися з auth
 }
 
 // DTO для оновлення інциденту (PUT/PATCH /api/incidents/:id)
@@ -36,4 +38,5 @@ export interface IncidentResponseDto {
   reporter: string;
   comments: string;
   createdAt: number;
+  ownerUserId: number; // Власник інциденту
 }

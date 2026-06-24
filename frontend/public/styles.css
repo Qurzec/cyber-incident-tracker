@@ -345,3 +345,25 @@ tr:hover {
     min-width: 0;
   }
 }
+
+/* Стилі для селектора користувача (Лабораторна робота №5) */
+.user-selector-container {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  background-color: #ebf5fb;
+  border: 1px solid #aed6f1;
+  padding: 10px 15px;
+  border-radius: 5px;
+  margin-bottom: 20px;
+}
+
+.user-selector-container select {
+  padding: 8px 12px;
+  border: 1px solid #3498db;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: #fff;
+  cursor: pointer;
+}

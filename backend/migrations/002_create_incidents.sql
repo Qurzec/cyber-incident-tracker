@@ -7,5 +7,8 @@ CREATE TABLE IF NOT EXISTS Incidents (
   severity TEXT NOT NULL CHECK(severity IN ('Низький', 'Середній', 'Високий', 'Критичний')),
   reporter TEXT NOT NULL,
   comments TEXT,
-  createdAt TEXT NOT NULL
+  ownerUserId INTEGER NOT NULL,
+  createdAt TEXT NOT NULL,
+  FOREIGN KEY (ownerUserId) REFERENCES Users(id) ON DELETE CASCADE
 );
+

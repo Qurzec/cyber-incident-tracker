@@ -182,6 +182,21 @@ async function handleFormSubmit(event: Event): Promise<void> {
 document.addEventListener("DOMContentLoaded", () => {
   const els = ui.getElements();
 
+  // Налаштування селектора користувача для демонстрації IDOR
+  if (!localStorage.getItem("demoUserId")) {
+    localStorage.setItem("demoUserId", "1");
+  }
+  const demoUserSelect = document.getElementById("demoUserSelect") as HTMLSelectElement;
+  if (demoUserSelect) {
+    demoUserSelect.value = localStorage.getItem("demoUserId") || "1";
+    demoUserSelect.addEventListener("change", () => {
+      localStorage.setItem("demoUserId", demoUserSelect.value);
+      ui.showNotice(`Активовано користувача з ID: ${demoUserSelect.value}`);
+      resetEditingState();
+      loadIncidents();
+    });
+  }
+
   // Реєструємо слухачі подій для форми
   els.incidentForm.addEventListener("submit", handleFormSubmit);
   els.cancelEditBtn.addEventListener("click", resetEditingState);

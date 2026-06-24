@@ -13,6 +13,7 @@ export class IncidentRepository {
       reporter: row.reporter,
       comments: row.comments || "",
       createdAt: new Date(row.createdAt).getTime(), // Перетворюємо рядок ISO в мілісекунди
+      ownerUserId: Number(row.ownerUserId),
     };
   }
 
@@ -26,17 +27,16 @@ export class IncidentRepository {
     sortDir?: "asc" | "desc";
   }): Promise<{ items: Incident[]; total: number }> {
     const conditions: string[] = [];
+    const params: any[] = [];
 
     // Збираємо умови фільтрації WHERE
     if (query.tag) {
-      conditions.push(
-        `LOWER(tag) = '${escapeSql(query.tag.trim().toLowerCase())}'`
-      );
+      conditions.push("LOWER(tag) = ?");
+      params.push(query.tag.trim().toLowerCase());
     }
     if (query.severity) {
-      conditions.push(
-        `LOWER(severity) = '${escapeSql(query.severity.trim().toLowerCase())}'`
-      );
+      conditions.push("LOWER(severity) = ?");
+      params.push(query.severity.trim().toLowerCase());
     }
 
     const whereClause =
@@ -44,7 +44,8 @@ export class IncidentRepository {
 
     // Отримуємо загальну кількість записів для пагінації
     const countRow = await get<{ count: number }>(
-      `SELECT COUNT(*) as count FROM Incidents ${whereClause};`
+      `SELECT COUNT(*) as count FROM Incidents ${whereClause};`,
+      params
     );
     const total = countRow ? countRow.count : 0;
 
@@ -79,7 +80,7 @@ export class IncidentRepository {
       ${limitOffsetClause};
     `;
 
-    const rows = await all<any>(sql);
+    const rows = await all<any>(sql, params);
     const items = rows.map((row) => this.mapRowToIncident(row));
 
     return { items, total };
@@ -88,7 +89,8 @@ export class IncidentRepository {
   // Знайти інцидент за його ID
   public async findById(id: string | number): Promise<Incident | undefined> {
     const row = await get<any>(
-      `SELECT * FROM Incidents WHERE id = ${Number(id)};`
+      "SELECT * FROM Incidents WHERE id = ?;",
+      [Number(id)]
     );
     if (!row) return undefined;
     return this.mapRowToIncident(row);
@@ -99,17 +101,19 @@ export class IncidentRepository {
     incident: Omit<Incident, "id" | "createdAt">
   ): Promise<Incident> {
     const createdAt = new Date().toISOString();
-    const result = await run(`
-      INSERT INTO Incidents (date, tag, severity, reporter, comments, createdAt)
-      VALUES (
-        '${escapeSql(incident.date.trim())}',
-        '${escapeSql(incident.tag.trim())}',
-        '${escapeSql(incident.severity.trim())}',
-        '${escapeSql(incident.reporter.trim())}',
-        '${escapeSql(incident.comments || "")}',
-        '${createdAt}'
-      );
-    `);
+    const result = await run(
+      `INSERT INTO Incidents (date, tag, severity, reporter, comments, ownerUserId, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?);`,
+      [
+        incident.date.trim(),
+        incident.tag.trim(),
+        incident.severity.trim(),
+        incident.reporter.trim(),
+        incident.comments || "",
+        incident.ownerUserId,
+        createdAt,
+      ]
+    );
 
     const savedIncident = await this.findById(result.lastID);
     if (!savedIncident) {
@@ -124,29 +128,40 @@ export class IncidentRepository {
     updatedFields: Partial<Incident>
   ): Promise<Incident | undefined> {
     const sets: string[] = [];
+    const params: any[] = [];
 
     if (updatedFields.date !== undefined) {
-      sets.push(`date = '${escapeSql(updatedFields.date.trim())}'`);
+      sets.push("date = ?");
+      params.push(updatedFields.date.trim());
     }
     if (updatedFields.tag !== undefined) {
-      sets.push(`tag = '${escapeSql(updatedFields.tag.trim())}'`);
+      sets.push("tag = ?");
+      params.push(updatedFields.tag.trim());
     }
     if (updatedFields.severity !== undefined) {
-      sets.push(`severity = '${escapeSql(updatedFields.severity.trim())}'`);
+      sets.push("severity = ?");
+      params.push(updatedFields.severity.trim());
     }
     if (updatedFields.reporter !== undefined) {
-      sets.push(`reporter = '${escapeSql(updatedFields.reporter.trim())}'`);
+      sets.push("reporter = ?");
+      params.push(updatedFields.reporter.trim());
     }
     if (updatedFields.comments !== undefined) {
-      sets.push(`comments = '${escapeSql(updatedFields.comments.trim())}'`);
+      sets.push("comments = ?");
+      params.push(updatedFields.comments.trim());
+    }
+    if (updatedFields.ownerUserId !== undefined) {
+      sets.push("ownerUserId = ?");
+      params.push(updatedFields.ownerUserId);
     }
 
     if (sets.length === 0) {
       return this.findById(id);
     }
 
-    const sql = `UPDATE Incidents SET ${sets.join(", ")} WHERE id = ${Number(id)};`;
-    const result = await run(sql);
+    params.push(Number(id));
+    const sql = `UPDATE Incidents SET ${sets.join(", ")} WHERE id = ?;`;
+    const result = await run(sql, params);
 
     if (result.changes === 0) return undefined;
     return this.findById(id);
@@ -154,15 +169,14 @@ export class IncidentRepository {
 
   // Видалити інцидент за його ID
   public async delete(id: string): Promise<boolean> {
-    const result = await run(`DELETE FROM Incidents WHERE id = ${Number(id)};`);
+    const result = await run("DELETE FROM Incidents WHERE id = ?;", [Number(id)]);
     return result.changes > 0;
   }
 
-  // Вразливий пошук інцидентів за коментарями (навчальна вразливість SQL Injection)
+  // Безпечний пошук інцидентів за коментарями (виправлено вразливість SQL Injection)
   public async searchVulnerable(q: string): Promise<Incident[]> {
-    // Рядкове з'єднання без екранування лапок
-    const sql = `SELECT * FROM Incidents WHERE comments LIKE '%${q}%' ORDER BY id DESC;`;
-    const rows = await all<any>(sql);
+    const sql = "SELECT * FROM Incidents WHERE comments LIKE ? ORDER BY id DESC;";
+    const rows = await all<any>(sql, [`%${q}%`]);
     return rows.map((row) => this.mapRowToIncident(row));
   }
 
@@ -172,10 +186,10 @@ export class IncidentRepository {
       SELECT c.id, c.incidentId, c.message, c.createdAt, u.id as userId, u.username, u.email
       FROM IncidentComments c
       JOIN Users u ON c.userId = u.id
-      WHERE c.incidentId = ${Number(incidentId)}
+      WHERE c.incidentId = ?
       ORDER BY c.id ASC;
     `;
-    return await all<any>(sql);
+    return await all<any>(sql, [Number(incidentId)]);
   }
 
   // Додати коментар до інциденту
@@ -185,22 +199,24 @@ export class IncidentRepository {
     message: string
   ): Promise<any> {
     const createdAt = new Date().toISOString();
-    const result = await run(`
-      INSERT INTO IncidentComments (incidentId, userId, message, createdAt)
-      VALUES (
-        ${Number(incidentId)},
-        ${Number(userId)},
-        '${escapeSql(message.trim())}',
-        '${createdAt}'
-      );
-    `);
+    const result = await run(
+      `INSERT INTO IncidentComments (incidentId, userId, message, createdAt)
+       VALUES (?, ?, ?, ?);`,
+      [
+        Number(incidentId),
+        Number(userId),
+        message.trim(),
+        createdAt,
+      ]
+    );
 
-    return await get<any>(`
-      SELECT c.id, c.incidentId, c.message, c.createdAt, u.username, u.email
-      FROM IncidentComments c
-      JOIN Users u ON c.userId = u.id
-      WHERE c.id = ${result.lastID};
-    `);
+    return await get<any>(
+      `SELECT c.id, c.incidentId, c.message, c.createdAt, u.username, u.email
+       FROM IncidentComments c
+       JOIN Users u ON c.userId = u.id
+       WHERE c.id = ?;`,
+      [result.lastID]
+    );
   }
 
   // Агрегація даних для аналітики (endpoint з COUNT / GROUP BY)
@@ -220,7 +236,7 @@ export class IncidentRepository {
     `);
 
     // Загальна кількість інцидентів
-    const totalRow = await get<any>(`SELECT COUNT(*) as total FROM Incidents;`);
+    const totalRow = await get<any>("SELECT COUNT(*) as total FROM Incidents;");
     const total = totalRow ? totalRow.total : 0;
 
     return {
@@ -230,3 +246,4 @@ export class IncidentRepository {
     };
   }
 }
+

@@ -21,6 +21,11 @@ async function request(path, options = {}) {
         }
     }, timeoutMs);
     const url = `${API_BASE_URL}${path}`;
+    // Отримуємо поточного користувача з localStorage для IDOR перевірок
+    const currentUserId = localStorage.getItem("demoUserId") || "1";
+    const headers = new Headers(options.headers || {});
+    headers.set("X-Demo-UserId", currentUserId);
+    options.headers = headers;
     // Показуємо у консолі деталі запиту
     console.log(`[API Request]: ${options.method || "GET"} ${url}`);
     try {

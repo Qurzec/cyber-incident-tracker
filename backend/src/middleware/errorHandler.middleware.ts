@@ -16,11 +16,12 @@ export const errorHandlerMiddleware = (
 
   // Обробка специфічних помилок обмежень бази даних SQLite
   if (err.message && typeof err.message === "string") {
+    const isProd = process.env.NODE_ENV === "production";
     if (err.message.includes("UNIQUE constraint failed")) {
       statusCode = 409;
       errorCode = "UNIQUE_CONSTRAINT_VIOLATION";
-      // Отримуємо детальну інформацію про те, яке поле порушено
-      const fieldInfo = err.message.split(": ").pop();
+      // Отримуємо детальну інформацію про те, яке поле порушено (приховуємо у production)
+      const fieldInfo = isProd ? "приховано" : err.message.split(": ").pop();
       message = `Цей запис вже існує у базі даних. Деталі: ${fieldInfo}`;
     } else if (
       err.message.includes("NOT NULL constraint failed") ||
@@ -28,7 +29,7 @@ export const errorHandlerMiddleware = (
     ) {
       statusCode = 400;
       errorCode = "DATABASE_CONSTRAINT_ERROR";
-      const fieldInfo = err.message.split(": ").pop();
+      const fieldInfo = isProd ? "приховано" : err.message.split(": ").pop();
       message = `Дані не відповідають вимогам схеми бази даних. Деталі: ${fieldInfo}`;
     } else if (err.message.includes("FOREIGN KEY constraint failed")) {
       statusCode = 409;

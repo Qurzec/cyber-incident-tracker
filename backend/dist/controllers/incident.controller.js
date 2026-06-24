@@ -50,7 +50,8 @@ class IncidentController {
     // POST /api/incidents - створити новий інцидент
     create = async (req, res, next) => {
         try {
-            const incident = await this.incidentService.createIncident(req.body);
+            const currentUserId = req.user ? Number(req.user.id) : 1;
+            const incident = await this.incidentService.createIncident(req.body, currentUserId);
             res.status(201).json(incident);
         }
         catch (err) {
@@ -61,7 +62,8 @@ class IncidentController {
     update = async (req, res, next) => {
         try {
             const incidentId = req.params.id;
-            const updatedIncident = await this.incidentService.updateIncident(incidentId, req.body, false);
+            const currentUserId = req.user ? Number(req.user.id) : 1;
+            const updatedIncident = await this.incidentService.updateIncident(incidentId, req.body, false, currentUserId);
             res.status(200).json(updatedIncident);
         }
         catch (err) {
@@ -72,7 +74,8 @@ class IncidentController {
     patch = async (req, res, next) => {
         try {
             const incidentId = req.params.id;
-            const updatedIncident = await this.incidentService.updateIncident(incidentId, req.body, true);
+            const currentUserId = req.user ? Number(req.user.id) : 1;
+            const updatedIncident = await this.incidentService.updateIncident(incidentId, req.body, true, currentUserId);
             res.status(200).json(updatedIncident);
         }
         catch (err) {
@@ -83,7 +86,8 @@ class IncidentController {
     delete = async (req, res, next) => {
         try {
             const incidentId = req.params.id;
-            await this.incidentService.deleteIncident(incidentId);
+            const currentUserId = req.user ? Number(req.user.id) : 1;
+            await this.incidentService.deleteIncident(incidentId, currentUserId);
             res.status(204).end(); // 204 No Content
         }
         catch (err) {

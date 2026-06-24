@@ -5,6 +5,7 @@ const express_1 = require("express");
 const incident_repository_1 = require("../repositories/incident.repository");
 const incident_service_1 = require("../services/incident.service");
 const incident_controller_1 = require("../controllers/incident.controller");
+const demoAuth_middleware_1 = require("../middleware/demoAuth.middleware");
 const router = (0, express_1.Router)();
 // Ініціалізуємо шари для інцидентів
 const incidentRepository = new incident_repository_1.IncidentRepository();
@@ -21,8 +22,8 @@ router.post("/:id/comments", incidentController.addComment);
 // Стандартні CRUD маршрути для /api/incidents
 router.get("/", incidentController.getAll);
 router.get("/:id", incidentController.getById);
-router.post("/", incidentController.create);
-router.put("/:id", incidentController.update);
-router.patch("/:id", incidentController.patch);
-router.delete("/:id", incidentController.delete);
+router.post("/", demoAuth_middleware_1.demoAuthMiddleware, incidentController.create);
+router.put("/:id", demoAuth_middleware_1.demoAuthMiddleware, incidentController.update);
+router.patch("/:id", demoAuth_middleware_1.demoAuthMiddleware, incidentController.patch);
+router.delete("/:id", demoAuth_middleware_1.demoAuthMiddleware, incidentController.delete);
 exports.default = router;

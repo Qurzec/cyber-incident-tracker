@@ -25,6 +25,7 @@ export class IncidentService {
       reporter: incident.reporter,
       comments: incident.comments,
       createdAt: incident.createdAt,
+      ownerUserId: incident.ownerUserId,
     };
   }
 
@@ -59,7 +60,8 @@ export class IncidentService {
 
   // Зареєструвати новий інцидент
   public async createIncident(
-    dto: CreateIncidentRequestDto
+    dto: CreateIncidentRequestDto,
+    currentUserId: number
   ): Promise<IncidentResponseDto> {
     const validationErrors: { field: string; message: string }[] = [];
 
@@ -150,6 +152,7 @@ export class IncidentService {
       severity: dto.severity.trim(),
       reporter: dto.reporter.trim(),
       comments: (dto.comments || "").trim(),
+      ownerUserId: currentUserId,
     };
 
     const savedIncident = await this.incidentRepository.create(newIncident);
@@ -160,7 +163,8 @@ export class IncidentService {
   public async updateIncident(
     id: string,
     dto: UpdateIncidentRequestDto,
-    isPartial = false
+    isPartial = false,
+    currentUserId: number
   ): Promise<IncidentResponseDto> {
     const existingIncident = await this.incidentRepository.findById(id);
     if (!existingIncident) {
@@ -168,6 +172,15 @@ export class IncidentService {
         404,
         "INCIDENT_NOT_FOUND",
         `Інцидент з ID ${id} не знайдено для оновлення`
+      );
+    }
+
+    // IDOR перевірка: тільки власник може оновлювати інцидент
+    if (existingIncident.ownerUserId !== currentUserId) {
+      throw new ApiError(
+        403,
+        "FORBIDDEN",
+        "Доступ заблоковано: Ви не є власником цього інциденту"
       );
     }
 
@@ -287,13 +300,31 @@ export class IncidentService {
   }
 
   // Видалити інцидент
-  public async deleteIncident(id: string): Promise<void> {
-    const deleted = await this.incidentRepository.delete(id);
-    if (!deleted) {
+  public async deleteIncident(id: string, currentUserId: number): Promise<void> {
+    const existingIncident = await this.incidentRepository.findById(id);
+    if (!existingIncident) {
       throw new ApiError(
         404,
         "INCIDENT_NOT_FOUND",
         `Інцидент з ID ${id} не знайдено для видалення`
+      );
+    }
+
+    // IDOR перевірка: тільки власник може видаляти інцидент
+    if (existingIncident.ownerUserId !== currentUserId) {
+      throw new ApiError(
+        403,
+        "FORBIDDEN",
+        "Доступ заблоковано: Ви не є власником цього інциденту"
+      );
+    }
+
+    const deleted = await this.incidentRepository.delete(id);
+    if (!deleted) {
+      throw new ApiError(
+        500,
+        "INTERNAL_SERVER_ERROR",
+        `Не вдалося видалити інцидент з ID ${id}`
       );
     }
   }

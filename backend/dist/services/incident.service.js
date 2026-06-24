@@ -18,6 +18,7 @@ class IncidentService {
             reporter: incident.reporter,
             comments: incident.comments,
             createdAt: incident.createdAt,
+            ownerUserId: incident.ownerUserId,
         };
     }
     // Отримати список інцидентів з підтримкою фільтрації, сортування та пагінації
@@ -37,7 +38,7 @@ class IncidentService {
         return this.toResponseDto(incident);
     }
     // Зареєструвати новий інцидент
-    async createIncident(dto) {
+    async createIncident(dto, currentUserId) {
         const validationErrors = [];
         // Перевірка дати
         if (!dto.date || dto.date.trim() === "") {
@@ -117,15 +118,20 @@ class IncidentService {
             severity: dto.severity.trim(),
             reporter: dto.reporter.trim(),
             comments: (dto.comments || "").trim(),
+            ownerUserId: currentUserId,
         };
         const savedIncident = await this.incidentRepository.create(newIncident);
         return this.toResponseDto(savedIncident);
     }
     // Оновити дані інциденту за ID (повне або часткове оновлення)
-    async updateIncident(id, dto, isPartial = false) {
+    async updateIncident(id, dto, isPartial = false, currentUserId) {
         const existingIncident = await this.incidentRepository.findById(id);
         if (!existingIncident) {
             throw new errors_1.ApiError(404, "INCIDENT_NOT_FOUND", `Інцидент з ID ${id} не знайдено для оновлення`);
+        }
+        // IDOR перевірка: тільки власник може оновлювати інцидент
+        if (existingIncident.ownerUserId !== currentUserId) {
+            throw new errors_1.ApiError(403, "FORBIDDEN", "Доступ заблоковано: Ви не є власником цього інциденту");
         }
         const validationErrors = [];
         // Перевірка дати
@@ -227,10 +233,18 @@ class IncidentService {
         return this.toResponseDto(updatedIncident);
     }
     // Видалити інцидент
-    async deleteIncident(id) {
+    async deleteIncident(id, currentUserId) {
+        const existingIncident = await this.incidentRepository.findById(id);
+        if (!existingIncident) {
+            throw new errors_1.ApiError(404, "INCIDENT_NOT_FOUND", `Інцидент з ID ${id} не знайдено для видалення`);
+        }
+        // IDOR перевірка: тільки власник може видаляти інцидент
+        if (existingIncident.ownerUserId !== currentUserId) {
+            throw new errors_1.ApiError(403, "FORBIDDEN", "Доступ заблоковано: Ви не є власником цього інциденту");
+        }
         const deleted = await this.incidentRepository.delete(id);
         if (!deleted) {
-            throw new errors_1.ApiError(404, "INCIDENT_NOT_FOUND", `Інцидент з ID ${id} не знайдено для видалення`);
+            throw new errors_1.ApiError(500, "INTERNAL_SERVER_ERROR", `Не вдалося видалити інцидент з ID ${id}`);
         }
     }
     // Вразливий пошук через репозиторій

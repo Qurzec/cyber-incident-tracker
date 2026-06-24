@@ -147,6 +147,17 @@ export function renderTableError(error: ApiError): void {
   `;
 }
 
+// Функція для екранування символів HTML, щоб запобігти XSS
+export function escapeHtml(str: string): string {
+  if (!str) return "";
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 // Рендеринг успішно отриманого списку інцидентів
 export function renderIncidentsList(
   items: IncidentResponseDto[],
@@ -170,8 +181,8 @@ export function renderIncidentsList(
       <td>${formattedDate}</td>
       <td>${incident.tag}</td>
       <td class="${severityClass}">${incident.severity}</td>
-      <td>${incident.reporter}</td>
-      <td>${incident.comments || "-"}</td>
+      <td>${escapeHtml(incident.reporter)}</td>
+      <td>${incident.comments ? escapeHtml(incident.comments) : "-"}</td>
       <td>
         <button class="btn-edit" data-id="${incident.id}">Редагувати</button>
         <button class="btn-delete" data-id="${incident.id}">Видалити</button>

@@ -22,7 +22,7 @@ export class UserRepository {
 
   // Знайти користувача за його ID
   public async findById(id: string | number): Promise<User | undefined> {
-    const row = await get<any>(`SELECT * FROM Users WHERE id = ${Number(id)};`);
+    const row = await get<any>("SELECT * FROM Users WHERE id = ?;", [Number(id)]);
     if (!row) return undefined;
     return this.mapRowToUser(row);
   }
@@ -30,7 +30,8 @@ export class UserRepository {
   // Знайти користувача за поштою (потрібно для перевірки унікальності)
   public async findByEmail(email: string): Promise<User | undefined> {
     const row = await get<any>(
-      `SELECT * FROM Users WHERE LOWER(email) = '${escapeSql(email.trim().toLowerCase())}';`
+      "SELECT * FROM Users WHERE LOWER(email) = ?;",
+      [email.trim().toLowerCase()]
     );
     if (!row) return undefined;
     return this.mapRowToUser(row);
@@ -41,16 +42,17 @@ export class UserRepository {
     user: Omit<User, "id"> & { password?: string }
   ): Promise<User> {
     const createdAt = new Date().toISOString();
-    const result = await run(`
-      INSERT INTO Users (username, email, password, role, createdAt)
-      VALUES (
-        '${escapeSql(user.username.trim())}',
-        '${escapeSql(user.email.trim())}',
-        '${escapeSql(user.password || "")}',
-        '${escapeSql(user.role)}',
-        '${createdAt}'
-      );
-    `);
+    const result = await run(
+      `INSERT INTO Users (username, email, password, role, createdAt)
+       VALUES (?, ?, ?, ?, ?);`,
+      [
+        user.username.trim(),
+        user.email.trim(),
+        user.password || "",
+        user.role,
+        createdAt
+      ]
+    );
 
     const savedUser = await this.findById(result.lastID);
     if (!savedUser) {
@@ -65,26 +67,32 @@ export class UserRepository {
     updatedFields: Partial<User>
   ): Promise<User | undefined> {
     const sets: string[] = [];
+    const params: any[] = [];
 
     if (updatedFields.username !== undefined) {
-      sets.push(`username = '${escapeSql(updatedFields.username.trim())}'`);
+      sets.push("username = ?");
+      params.push(updatedFields.username.trim());
     }
     if (updatedFields.email !== undefined) {
-      sets.push(`email = '${escapeSql(updatedFields.email.trim())}'`);
+      sets.push("email = ?");
+      params.push(updatedFields.email.trim());
     }
     if (updatedFields.password !== undefined) {
-      sets.push(`password = '${escapeSql(updatedFields.password)}'`);
+      sets.push("password = ?");
+      params.push(updatedFields.password);
     }
     if (updatedFields.role !== undefined) {
-      sets.push(`role = '${escapeSql(updatedFields.role)}'`);
+      sets.push("role = ?");
+      params.push(updatedFields.role);
     }
 
     if (sets.length === 0) {
       return this.findById(id);
     }
 
-    const sql = `UPDATE Users SET ${sets.join(", ")} WHERE id = ${Number(id)};`;
-    const result = await run(sql);
+    params.push(Number(id));
+    const sql = `UPDATE Users SET ${sets.join(", ")} WHERE id = ?;`;
+    const result = await run(sql, params);
 
     if (result.changes === 0) return undefined;
     return this.findById(id);
@@ -92,7 +100,7 @@ export class UserRepository {
 
   // Видалити користувача за його ID
   public async delete(id: string): Promise<boolean> {
-    const result = await run(`DELETE FROM Users WHERE id = ${Number(id)};`);
+    const result = await run("DELETE FROM Users WHERE id = ?;", [Number(id)]);
     return result.changes > 0;
   }
 }
